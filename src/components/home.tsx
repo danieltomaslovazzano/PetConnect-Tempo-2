@@ -54,8 +54,8 @@ const Home = () => {
     setShowReportModal(true);
   };
 
-  const handleReportSubmit = (data: any) => {
-    console.log("Report submitted:", data);
+  const handleReportSubmit = (petData: any) => {
+    console.log("Pet report submitted successfully:", petData);
     setShowReportModal(false);
     // Show match modal as a demo after submitting a report
     setTimeout(() => setShowMatchModal(true), 1000);

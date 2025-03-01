@@ -13,6 +13,20 @@ import {
   List,
   Map as MapIcon,
 } from "lucide-react";
+// @ts-ignore
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import "./LeafletStyles.css";
+
+// Fix for default marker icons in react-leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+});
 
 import MapFilters from "./MapFilters";
 import PetPreviewCard from "../pets/PetPreviewCard";
@@ -164,6 +178,22 @@ const InteractiveMap = ({
     setFilteredPets(pets);
   }, [pets]);
 
+  // Create custom marker icons
+  const createMarkerIcon = (status: "lost" | "found") => {
+    return new L.Icon({
+      iconUrl:
+        status === "lost"
+          ? "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png"
+          : "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
+      shadowUrl:
+        "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41],
+    });
+  };
+
   return (
     <div className="w-full h-full bg-white flex flex-col">
       {/* Map Controls */}
@@ -229,46 +259,86 @@ const InteractiveMap = ({
         {/* Main Content Area */}
         <div className="flex-1 relative">
           {viewMode === "map" ? (
-            <div className="w-full h-full bg-gray-100 relative">
-              {/* This would be replaced with an actual map component */}
-              <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                <div className="text-center">
-                  <MapIcon className="h-16 w-16 mx-auto text-gray-400" />
-                  <p className="mt-2">Interactive Map View</p>
-                  <p className="text-sm text-gray-400">
-                    (Map implementation would go here)
-                  </p>
-                </div>
+            <div className="w-full h-full relative">
+              <div style={{ height: "100%", width: "100%" }}>
+                <MapContainer
+                  center={[initialCenter.lat, initialCenter.lng]}
+                  zoom={initialZoom}
+                  style={{ height: "100%", width: "100%" }}
+                  whenCreated={(map) => {
+                    mapRef.current = map;
+                  }}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+
+                  {filteredPets.map((pet) => (
+                    <Marker
+                      key={pet.id}
+                      position={[pet.coordinates.lat, pet.coordinates.lng]}
+                      icon={createMarkerIcon(pet.status)}
+                      eventHandlers={{
+                        click: () => handleMarkerClick(pet.id),
+                      }}
+                    >
+                      {selectedPet && selectedPet.id === pet.id && (
+                        <Popup closeButton={false}>
+                          <div className="w-[250px]">
+                            <div className="flex items-center gap-2 mb-2">
+                              <img
+                                src={pet.imageUrl}
+                                alt={pet.name}
+                                className="w-12 h-12 rounded-full object-cover"
+                              />
+                              <div>
+                                <h3 className="font-medium">{pet.name}</h3>
+                                <p className="text-xs text-gray-500">
+                                  {pet.type} - {pet.breed}
+                                </p>
+                              </div>
+                              <Badge
+                                variant={
+                                  pet.status === "lost"
+                                    ? "destructive"
+                                    : "secondary"
+                                }
+                                className="ml-auto capitalize"
+                              >
+                                {pet.status}
+                              </Badge>
+                            </div>
+                            <p className="text-xs mb-2">{pet.description}</p>
+                            <div className="flex justify-between">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onViewDetails(pet.id)}
+                                className="text-xs px-2 h-7"
+                              >
+                                View Details
+                              </Button>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => onContact(pet.id)}
+                                className="text-xs px-2 h-7"
+                              >
+                                Contact
+                              </Button>
+                            </div>
+                          </div>
+                        </Popup>
+                      )}
+                    </Marker>
+                  ))}
+                </MapContainer>
               </div>
 
-              {/* Simulate map markers */}
-              {filteredPets.map((pet) => (
-                <div
-                  key={pet.id}
-                  className="absolute cursor-pointer transform -translate-x-1/2 -translate-y-1/2"
-                  style={{
-                    left: `${(pet.coordinates.lng + 74.01) * 10}px`,
-                    top: `${(40.75 - pet.coordinates.lat) * 10}px`,
-                  }}
-                  onClick={() => handleMarkerClick(pet.id)}
-                >
-                  <div
-                    className={`p-1 rounded-full ${pet.status === "lost" ? "bg-red-500" : "bg-green-500"}`}
-                  >
-                    <MapPin className="h-6 w-6 text-white" />
-                  </div>
-                </div>
-              ))}
-
-              {/* Selected pet info window */}
+              {/* Selected pet info window - positioned absolutely over the map */}
               {selectedPet && (
-                <div
-                  className="absolute z-10"
-                  style={{
-                    left: `${(selectedPet.coordinates.lng + 74.01) * 10}px`,
-                    top: `${(40.75 - selectedPet.coordinates.lat) * 10 - 120}px`,
-                  }}
-                >
+                <div className="absolute z-10 left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
                   <div className="relative">
                     <Button
                       variant="ghost"

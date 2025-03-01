@@ -3,6 +3,11 @@ import { Search, MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+// @ts-ignore
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import "./LeafletStyles.css";
 
 interface LocationPickerProps {
   onLocationSelect?: (location: {
@@ -25,6 +30,7 @@ const LocationPicker = ({
 }: LocationPickerProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState(initialLocation);
+  const mapRef = useRef<L.Map | null>(null);
 
   const [searchResults, setSearchResults] = useState<
     Array<{ address: string; lat: number; lng: number }>
@@ -60,16 +66,21 @@ const LocationPicker = ({
     setSearchResults([]);
   };
 
-  // Mock function to simulate placing a pin on the map
-  const handleMapClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    // In a real implementation, this would get coordinates from the map click event
-    const mockLocation = {
-      lat: 40.7128 + (Math.random() * 0.1 - 0.05),
-      lng: -74.006 + (Math.random() * 0.1 - 0.05),
-      address: "Custom Pin Location",
-    };
-    setSelectedLocation(mockLocation);
-    onLocationSelect(mockLocation);
+  // Map click handler component
+  const MapClickHandler = () => {
+    useMapEvents({
+      click: (e) => {
+        const { lat, lng } = e.latlng;
+        const newLocation = {
+          lat,
+          lng,
+          address: `Location at ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+        };
+        setSelectedLocation(newLocation);
+        onLocationSelect(newLocation);
+      },
+    });
+    return null;
   };
 
   return (
@@ -109,19 +120,38 @@ const LocationPicker = ({
         )}
       </CardHeader>
       <CardContent>
-        <div
-          className="w-full h-[200px] bg-gray-200 rounded-md relative overflow-hidden"
-          onClick={handleMapClick}
-        >
-          {/* This would be replaced with an actual map component */}
-          <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-            <span className="text-sm">Map View (Click to place pin)</span>
-          </div>
-
-          {/* Centered pin to represent selected location */}
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-blue-600">
-            <MapPin className="h-8 w-8" />
-          </div>
+        <div className="w-full h-[200px] rounded-md relative overflow-hidden">
+          <MapContainer
+            center={[initialLocation.lat, initialLocation.lng]}
+            zoom={13}
+            style={{ height: "100%", width: "100%" }}
+            whenCreated={(map) => {
+              mapRef.current = map;
+            }}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <Marker
+              position={[selectedLocation.lat, selectedLocation.lng]}
+              icon={
+                new L.Icon({
+                  iconUrl:
+                    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+                  iconRetinaUrl:
+                    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+                  shadowUrl:
+                    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+                  iconSize: [25, 41],
+                  iconAnchor: [12, 41],
+                  popupAnchor: [1, -34],
+                  shadowSize: [41, 41],
+                })
+              }
+            />
+            <MapClickHandler />
+          </MapContainer>
 
           {/* Selected location info */}
           <div className="absolute bottom-2 left-2 right-2 bg-white p-2 rounded-md shadow-md z-[1000]">
