@@ -51,13 +51,24 @@ export default async function handler(
           .json({ error: "You don't have permission to update this pet" });
       }
 
-      // Update pet
-      const pet = await updatePet(id, req.body);
+      // Validate request body
+      if (!req.body || typeof req.body !== "object") {
+        return res.status(400).json({ error: "Invalid request body" });
+      }
 
-      return res.status(200).json({
-        pet,
-        message: "Pet updated successfully",
-      });
+      // Update pet
+      try {
+        const pet = await updatePet(id, req.body);
+        return res.status(200).json({
+          pet,
+          message: "Pet updated successfully",
+        });
+      } catch (err: any) {
+        if (err.message?.includes("not found")) {
+          return res.status(404).json({ error: `Pet with ID ${id} not found` });
+        }
+        throw err;
+      }
     }
 
     // Handle DELETE request
@@ -79,18 +90,43 @@ export default async function handler(
       }
 
       // Delete pet
-      await deletePet(id);
-
-      return res.status(200).json({
-        success: true,
-        message: "Pet deleted successfully",
-      });
+      try {
+        await deletePet(id);
+        return res.status(200).json({
+          success: true,
+          message: "Pet deleted successfully",
+        });
+      } catch (err: any) {
+        if (err.message?.includes("not found")) {
+          return res.status(404).json({ error: `Pet with ID ${id} not found` });
+        }
+        throw err;
+      }
     }
 
     // Handle unsupported methods
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error: any) {
     console.error("API error:", error);
+
+    // Handle common errors with appropriate status codes
+    if (error.message?.includes("Authentication required")) {
+      return res.status(401).json({
+        error: "Authentication required",
+      });
+    }
+
+    if (error.message?.includes("permission")) {
+      return res.status(403).json({
+        error: error.message || "Permission denied",
+      });
+    }
+
+    if (error.message?.includes("not found")) {
+      return res.status(404).json({
+        error: error.message || "Resource not found",
+      });
+    }
 
     return res.status(error.status || 500).json({
       error: error.message || "Internal server error",

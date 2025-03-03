@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -21,7 +21,7 @@ const petFormSchema = z.object({
     lat: z.number(),
     lng: z.number(),
   }),
-  image_url: z.string().url().optional(),
+  image_url: z.string().url().optional().or(z.literal("")),
   microchipped: z.boolean().optional(),
   collar: z.boolean().optional(),
   distinctive_features: z.string().optional(),
@@ -65,23 +65,27 @@ export function usePetForm(
 
       const pet = await getPet(petId);
 
+      if (!pet) {
+        throw new Error(`Pet with ID ${petId} not found`);
+      }
+
       // Reset form with pet data
       form.reset({
-        name: pet.name,
-        type: pet.type,
-        breed: pet.breed,
-        color: pet.color,
-        gender: pet.gender as any,
-        size: pet.size as any,
-        age: pet.age,
-        description: pet.description,
-        status: pet.status as "lost" | "found",
-        location: pet.location,
-        coordinates: pet.coordinates,
-        image_url: pet.image_url,
-        microchipped: pet.microchipped,
-        collar: pet.collar,
-        distinctive_features: pet.distinctive_features,
+        name: pet.name || "",
+        type: pet.type || "Dog",
+        breed: pet.breed || "",
+        color: pet.color || "",
+        gender: (pet.gender as any) || "unknown",
+        size: (pet.size as any) || "medium",
+        age: pet.age || "",
+        description: pet.description || "",
+        status: (pet.status as "lost" | "found") || "lost",
+        location: pet.location || "",
+        coordinates: pet.coordinates || { lat: 0, lng: 0 },
+        image_url: pet.image_url || "",
+        microchipped: pet.microchipped || false,
+        collar: pet.collar || false,
+        distinctive_features: pet.distinctive_features || "",
       });
 
       return pet;
@@ -93,6 +97,13 @@ export function usePetForm(
       setLoading(false);
     }
   };
+
+  // Load pet data on mount if petId is provided
+  useEffect(() => {
+    if (petId) {
+      loadPetData();
+    }
+  }, [petId]);
 
   // Submit form data
   const onSubmit = async (data: PetFormValues) => {

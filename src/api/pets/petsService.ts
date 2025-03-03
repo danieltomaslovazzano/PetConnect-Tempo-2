@@ -1,63 +1,74 @@
 import { supabase } from "@/lib/supabase";
 import { Pet, CreatePetRequest, UpdatePetRequest, PetFilters } from "./types";
 import { getCurrentUser, hasRole, isResourceOwner } from "../auth/authService";
+import { cacheService } from "../cache/cacheService";
 
 /**
  * Get all pets with optional filtering
  */
 export async function getPets(filters: PetFilters = {}): Promise<Pet[]> {
   try {
-    let query = supabase.from("pets").select("*");
+    // Generate a cache key based on the filters
+    const cacheKey = `pets_${JSON.stringify(filters)}`;
 
-    // Apply filters
-    if (filters.status) {
-      query = query.eq("status", filters.status);
-    }
+    // Try to get from cache first (for non-critical data like public listings)
+    return await cacheService.getOrCompute(
+      cacheKey,
+      async () => {
+        let query = supabase.from("pets").select("*");
 
-    if (filters.type) {
-      query = query.eq("type", filters.type);
-    }
+        // Apply filters
+        if (filters.status) {
+          query = query.eq("status", filters.status);
+        }
 
-    if (filters.breed) {
-      query = query.ilike("breed", `%${filters.breed}%`);
-    }
+        if (filters.type) {
+          query = query.eq("type", filters.type);
+        }
 
-    if (filters.location) {
-      query = query.ilike("location", `%${filters.location}%`);
-    }
+        if (filters.breed) {
+          query = query.ilike("breed", `%${filters.breed}%`);
+        }
 
-    if (filters.owner_id) {
-      query = query.eq("owner_id", filters.owner_id);
-    }
+        if (filters.location) {
+          query = query.ilike("location", `%${filters.location}%`);
+        }
 
-    if (filters.reported_after) {
-      query = query.gte("reported_date", filters.reported_after);
-    }
+        if (filters.owner_id) {
+          query = query.eq("owner_id", filters.owner_id);
+        }
 
-    if (filters.reported_before) {
-      query = query.lte("reported_date", filters.reported_before);
-    }
+        if (filters.reported_after) {
+          query = query.gte("reported_date", filters.reported_after);
+        }
 
-    // Pagination
-    if (filters.limit) {
-      query = query.limit(filters.limit);
-    }
+        if (filters.reported_before) {
+          query = query.lte("reported_date", filters.reported_before);
+        }
 
-    if (filters.offset) {
-      query = query.range(
-        filters.offset,
-        filters.offset + (filters.limit || 10) - 1,
-      );
-    }
+        // Pagination
+        if (filters.limit) {
+          query = query.limit(filters.limit);
+        }
 
-    // Order by most recent first
-    query = query.order("reported_date", { ascending: false });
+        if (filters.offset) {
+          query = query.range(
+            filters.offset,
+            filters.offset + (filters.limit || 10) - 1,
+          );
+        }
 
-    const { data, error } = await query;
+        // Order by most recent first
+        query = query.order("reported_date", { ascending: false });
 
-    if (error) throw error;
+        const { data, error } = await query;
 
-    return data as Pet[];
+        if (error) throw error;
+
+        return data as Pet[];
+      },
+      60000,
+    ); // Cache for 1 minute
   } catch (error) {
     console.error("Error fetching pets:", error);
     throw error;
@@ -68,16 +79,30 @@ export async function getPets(filters: PetFilters = {}): Promise<Pet[]> {
  * Get a single pet by ID
  */
 export async function getPetById(id: string): Promise<Pet> {
+  if (!id) {
+    throw new Error("Pet ID is required");
+  }
+
   try {
-    const { data, error } = await supabase
-      .from("pets")
-      .select("*")
-      .eq("id", id)
-      .single();
+    // Try to get from cache first
+    const cacheKey = `pet_${id}`;
 
-    if (error) throw error;
+    return await cacheService.getOrCompute(
+      cacheKey,
+      async () => {
+        const { data, error } = await supabase
+          .from("pets")
+          .select("*")
+          .eq("id", id)
+          .single();
 
-    return data as Pet;
+        if (error) throw error;
+        if (!data) throw new Error(`Pet with ID ${id} not found`);
+
+        return data as Pet;
+      },
+      300000,
+    ); // Cache for 5 minutes
   } catch (error) {
     console.error(`Error fetching pet with ID ${id}:`, error);
     throw error;
@@ -89,11 +114,20 @@ export async function getPetById(id: string): Promise<Pet> {
  * Requires authentication
  */
 export async function createPet(petData: CreatePetRequest): Promise<Pet> {
+  if (!petData) {
+    throw new Error("Pet data is required");
+  }
+
   try {
     // Get current user
     const user = await getCurrentUser();
     if (!user) {
       throw new Error("Authentication required");
+    }
+
+    // Validate required fields
+    if (!petData.name || !petData.breed || !petData.location) {
+      throw new Error("Missing required fields");
     }
 
     // Prepare pet data with owner information
@@ -113,6 +147,7 @@ export async function createPet(petData: CreatePetRequest): Promise<Pet> {
       .single();
 
     if (error) throw error;
+    if (!data) throw new Error("Failed to create pet record");
 
     // Create audit log
     await supabase.from("audit_logs").insert([
@@ -124,6 +159,13 @@ export async function createPet(petData: CreatePetRequest): Promise<Pet> {
         new_values: data,
       },
     ]);
+
+    // Clear any cached pet lists to ensure fresh data
+    Object.keys(cacheService.getKeys()).forEach((key) => {
+      if (key.startsWith("pets_")) {
+        cacheService.remove(key);
+      }
+    });
 
     return data as Pet;
   } catch (error) {
@@ -140,6 +182,10 @@ export async function updatePet(
   id: string,
   petData: UpdatePetRequest,
 ): Promise<Pet> {
+  if (!id || !petData) {
+    throw new Error("Pet ID and update data are required");
+  }
+
   try {
     // Get current user
     const user = await getCurrentUser();
@@ -163,6 +209,7 @@ export async function updatePet(
       .single();
 
     if (fetchError) throw fetchError;
+    if (!oldPet) throw new Error(`Pet with ID ${id} not found`);
 
     // Prepare update data
     const updateData = {
@@ -179,6 +226,7 @@ export async function updatePet(
       .single();
 
     if (error) throw error;
+    if (!data) throw new Error(`Failed to update pet with ID ${id}`);
 
     // Create audit log
     await supabase.from("audit_logs").insert([
@@ -192,6 +240,14 @@ export async function updatePet(
       },
     ]);
 
+    // Clear relevant caches
+    cacheService.remove(`pet_${id}`);
+    Object.keys(cacheService.getKeys()).forEach((key) => {
+      if (key.startsWith("pets_")) {
+        cacheService.remove(key);
+      }
+    });
+
     return data as Pet;
   } catch (error) {
     console.error(`Error updating pet with ID ${id}:`, error);
@@ -204,6 +260,10 @@ export async function updatePet(
  * Requires authentication and ownership or admin role
  */
 export async function deletePet(id: string): Promise<boolean> {
+  if (!id) {
+    throw new Error("Pet ID is required");
+  }
+
   try {
     // Get current user
     const user = await getCurrentUser();
@@ -227,6 +287,7 @@ export async function deletePet(id: string): Promise<boolean> {
       .single();
 
     if (fetchError) throw fetchError;
+    if (!oldPet) throw new Error(`Pet with ID ${id} not found`);
 
     // Delete from database
     const { error } = await supabase.from("pets").delete().eq("id", id);
@@ -243,6 +304,14 @@ export async function deletePet(id: string): Promise<boolean> {
         old_values: oldPet,
       },
     ]);
+
+    // Clear relevant caches
+    cacheService.remove(`pet_${id}`);
+    Object.keys(cacheService.getKeys()).forEach((key) => {
+      if (key.startsWith("pets_")) {
+        cacheService.remove(key);
+      }
+    });
 
     return true;
   } catch (error) {

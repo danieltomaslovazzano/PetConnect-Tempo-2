@@ -46,6 +46,25 @@ export default async function handler(
   } catch (error: any) {
     console.error("API error:", error);
 
+    // Handle common errors with appropriate status codes
+    if (error.message?.includes("Authentication required")) {
+      return res.status(401).json({
+        error: "Authentication required",
+      });
+    }
+
+    if (error.message?.includes("permission")) {
+      return res.status(403).json({
+        error: error.message || "Permission denied",
+      });
+    }
+
+    if (error.message?.includes("not found")) {
+      return res.status(404).json({
+        error: error.message || "Pet not found",
+      });
+    }
+
     return res.status(error.status || 500).json({
       error: error.message || "Internal server error",
       details: error.details || undefined,

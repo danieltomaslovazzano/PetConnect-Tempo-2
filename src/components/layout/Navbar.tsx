@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -42,6 +42,7 @@ const Navbar = ({
   onSignup = () => {},
   onLogout = () => {},
 }: NavbarProps) => {
+  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
@@ -55,24 +56,27 @@ const Navbar = ({
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-6">
-          <Link to="/" className="text-gray-700 hover:text-primary font-medium">
+          <Link
+            to="/"
+            className={`font-medium ${location.pathname === "/" ? "text-primary" : "text-gray-700 hover:text-primary"}`}
+          >
             Home
           </Link>
           <Link
             to="/lost-pets"
-            className="text-gray-700 hover:text-primary font-medium"
+            className={`font-medium ${location.pathname === "/lost-pets" ? "text-primary" : "text-gray-700 hover:text-primary"}`}
           >
             Lost Pets
           </Link>
           <Link
             to="/found-pets"
-            className="text-gray-700 hover:text-primary font-medium"
+            className={`font-medium ${location.pathname === "/found-pets" ? "text-primary" : "text-gray-700 hover:text-primary"}`}
           >
             Found Pets
           </Link>
           <Link
             to="/resources"
-            className="text-gray-700 hover:text-primary font-medium"
+            className={`font-medium ${location.pathname === "/resources" ? "text-primary" : "text-gray-700 hover:text-primary"}`}
           >
             Resources
           </Link>

@@ -1,11 +1,18 @@
 import { supabase } from "@/lib/supabase";
 import { AuthResponse, AuthError, AuthUser } from "./types";
 
+import { cacheService } from "../cache/cacheService";
+
 /**
  * Get the current authenticated user
  */
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
+    // Try to get from cache first for better performance
+    const cacheKey = "current_user";
+    const cachedUser = cacheService.get<AuthUser>(cacheKey);
+    if (cachedUser) return cachedUser;
+
     const { data, error } = await supabase.auth.getUser();
     if (error) throw error;
 
@@ -20,12 +27,17 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
     if (userError) throw userError;
 
-    return {
+    const user = {
       id: data.user.id,
       email: data.user.email || "",
       name: userData?.name || "",
       role: (userData?.role as "user" | "moderator" | "admin") || "user",
     };
+
+    // Cache the user for 5 minutes
+    cacheService.set(cacheKey, user, 5 * 60 * 1000);
+
+    return user;
   } catch (error) {
     console.error("Error getting current user:", error);
     return null;
@@ -37,8 +49,20 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
  */
 export async function getAuthToken(): Promise<string | null> {
   try {
+    // Try to get from cache first
+    const cacheKey = "auth_token";
+    const cachedToken = cacheService.get<string>(cacheKey);
+    if (cachedToken) return cachedToken;
+
     const { data } = await supabase.auth.getSession();
-    return data.session?.access_token || null;
+    const token = data.session?.access_token || null;
+
+    if (token) {
+      // Cache the token for 10 minutes (shorter than token expiry)
+      cacheService.set(cacheKey, token, 10 * 60 * 1000);
+    }
+
+    return token;
   } catch (error) {
     console.error("Error getting auth token:", error);
     return null;

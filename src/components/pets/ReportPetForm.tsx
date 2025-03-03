@@ -134,6 +134,16 @@ const ReportPetForm = ({
         data.image_url = imageUrl;
       }
 
+      // Validate required fields
+      if (!data.name || !data.breed || !data.location) {
+        throw new Error("Please fill in all required fields");
+      }
+
+      // Validate coordinates
+      if (!data.coordinates || !data.coordinates.lat || !data.coordinates.lng) {
+        throw new Error("Please select a valid location on the map");
+      }
+
       // Create pet using the API
       const petData: CreatePetRequest = {
         ...data,
@@ -142,6 +152,27 @@ const ReportPetForm = ({
 
       const result = await createPet(petData);
 
+      // Reset form on success
+      form.reset({
+        name: reportType === "found" ? "Unknown" : "",
+        type: "Dog",
+        breed: "",
+        color: "",
+        gender: "unknown",
+        size: "medium",
+        age: "",
+        description: "",
+        status: reportType,
+        owner_name: "",
+        owner_email: "",
+        location: location.address,
+        coordinates: { lat: location.lat, lng: location.lng },
+        microchipped: false,
+        collar: false,
+        distinctive_features: "",
+      });
+
+      setImageUrl("");
       setSuccess(true);
       onSuccess(result);
     } catch (err: any) {

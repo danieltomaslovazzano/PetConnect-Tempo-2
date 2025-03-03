@@ -8,23 +8,9 @@ import {
   PetFilters,
 } from "./types";
 import { getAuthToken } from "../auth/authService";
+import { buildQueryString, handleApiError } from "../utils/apiHelpers";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
-
-/**
- * Helper function to handle API errors
- */
-async function handleApiError(response: Response): Promise<PetError> {
-  let errorData: any = { error: "Unknown error", status: response.status };
-
-  try {
-    errorData = await response.json();
-  } catch (e) {
-    errorData.error = response.statusText || "Unknown error";
-  }
-
-  return errorData as PetError;
-}
 
 /**
  * Get all pets with optional filtering
@@ -33,23 +19,7 @@ export async function fetchPets(
   filters: PetFilters = {},
 ): Promise<PetsResponse> {
   try {
-    // Build query string from filters
-    const queryParams = new URLSearchParams();
-
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        if (typeof value === "object") {
-          queryParams.append(key, JSON.stringify(value));
-        } else {
-          queryParams.append(key, value.toString());
-        }
-      }
-    });
-
-    const queryString = queryParams.toString()
-      ? `?${queryParams.toString()}`
-      : "";
-
+    const queryString = buildQueryString(filters);
     const response = await fetch(`${API_URL}/api/pets${queryString}`);
 
     if (!response.ok) {

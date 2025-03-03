@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import {
   Heart,
   Mail,
@@ -104,44 +105,44 @@ const Footer = ({
             </h3>
             <ul className="space-y-2">
               <li>
-                <a
-                  href="/"
+                <Link
+                  to="/"
                   className="text-gray-600 hover:text-primary transition-colors"
                 >
                   Home
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="/lost-pets"
+                <Link
+                  to="/lost-pets"
                   className="text-gray-600 hover:text-primary transition-colors"
                 >
                   Lost Pets
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="/found-pets"
+                <Link
+                  to="/found-pets"
                   className="text-gray-600 hover:text-primary transition-colors"
                 >
                   Found Pets
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="/success-stories"
+                <Link
+                  to="/success-stories"
                   className="text-gray-600 hover:text-primary transition-colors"
                 >
                   Success Stories
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="/resources"
+                <Link
+                  to="/resources"
                   className="text-gray-600 hover:text-primary transition-colors"
                 >
                   Pet Care Resources
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -207,24 +208,24 @@ const Footer = ({
             reserved.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
-            <a
-              href="/privacy"
+            <Link
+              to="/privacy"
               className="text-sm text-gray-600 hover:text-primary transition-colors"
             >
               Privacy Policy
-            </a>
-            <a
-              href="/terms"
+            </Link>
+            <Link
+              to="/terms"
               className="text-sm text-gray-600 hover:text-primary transition-colors"
             >
               Terms of Service
-            </a>
-            <a
-              href="/cookies"
+            </Link>
+            <Link
+              to="/cookies"
               className="text-sm text-gray-600 hover:text-primary transition-colors"
             >
               Cookie Policy
-            </a>
+            </Link>
           </div>
           <div className="mt-4 md:mt-0 flex items-center">
             <span className="text-sm text-gray-600 mr-2">Made with</span>

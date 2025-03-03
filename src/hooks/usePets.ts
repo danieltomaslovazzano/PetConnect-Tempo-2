@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   fetchPets,
   fetchPetById,
@@ -10,6 +10,7 @@ import {
   UpdatePetRequest,
   PetFilters,
 } from "@/api";
+import { debounce } from "@/api/utils/apiHelpers";
 
 /**
  * Hook for managing pets in the UI
@@ -22,7 +23,7 @@ export function usePets(initialFilters: PetFilters = {}) {
   const [totalCount, setTotalCount] = useState(0);
 
   // Load pets with current filters
-  const loadPets = async () => {
+  const loadPets = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -39,10 +40,14 @@ export function usePets(initialFilters: PetFilters = {}) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   // Get a single pet by ID
   const getPet = async (id: string) => {
+    if (!id) {
+      throw new Error("Pet ID is required");
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -60,6 +65,10 @@ export function usePets(initialFilters: PetFilters = {}) {
 
   // Create a new pet
   const createPet = async (petData: CreatePetRequest) => {
+    if (!petData) {
+      throw new Error("Pet data is required");
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -82,6 +91,10 @@ export function usePets(initialFilters: PetFilters = {}) {
 
   // Update an existing pet
   const updatePet = async (id: string, petData: UpdatePetRequest) => {
+    if (!id || !petData) {
+      throw new Error("Pet ID and update data are required");
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -105,6 +118,10 @@ export function usePets(initialFilters: PetFilters = {}) {
 
   // Delete a pet
   const deletePet = async (id: string) => {
+    if (!id) {
+      throw new Error("Pet ID is required");
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -125,7 +142,15 @@ export function usePets(initialFilters: PetFilters = {}) {
     }
   };
 
-  // Update filters and reload pets
+  // Update filters with debounce to prevent too many API calls
+  const debouncedUpdateFilters = useCallback(
+    debounce((newFilters: PetFilters) => {
+      setFilters((prev) => ({ ...prev, ...newFilters }));
+    }, 300),
+    [],
+  );
+
+  // Immediate filter update (for non-text filters)
   const updateFilters = (newFilters: PetFilters) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
   };
@@ -133,7 +158,7 @@ export function usePets(initialFilters: PetFilters = {}) {
   // Load pets when filters change
   useEffect(() => {
     loadPets();
-  }, [filters]);
+  }, [loadPets]);
 
   return {
     pets,
@@ -147,5 +172,6 @@ export function usePets(initialFilters: PetFilters = {}) {
     updatePet,
     deletePet,
     updateFilters,
+    debouncedUpdateFilters,
   };
 }
