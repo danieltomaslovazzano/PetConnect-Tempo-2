@@ -6,20 +6,18 @@
     "module": "ESNext",
     "skipLibCheck": true,
     "noEmitOnError": false,
-
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-
     "strict": false,
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"],
-  "exclude": ["src/tempobook"],
+  "include": ["next-env.d.ts", "src"],
+  "exclude": ["node_modules", "src/tempobook"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

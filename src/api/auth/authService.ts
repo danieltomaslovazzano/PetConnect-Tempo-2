@@ -18,21 +18,30 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
     if (!data?.user) return null;
 
-    // Get additional user data from the users table
+    // Get additional user data from the profiles table
     const { data: userData, error: userError } = await supabase
-      .from("users")
+      .from("profiles")
       .select("name, role")
       .eq("id", data.user.id)
       .single();
 
-    if (userError) throw userError;
-
-    const user = {
-      id: data.user.id,
-      email: data.user.email || "",
-      name: userData?.name || "",
-      role: (userData?.role as "user" | "moderator" | "admin") || "user",
-    };
+    let user: AuthUser;
+    if (userError || !userData) {
+      console.error("Error fetching profile data:", userError?.message);
+      user = {
+        id: data.user.id,
+        email: data.user.email || "",
+        name: "",
+        role: "user",
+      };
+    } else {
+      user = {
+        id: data.user.id,
+        email: data.user.email || "",
+        name: userData.name || "",
+        role: (userData.role as "user" | "moderator" | "admin") || "user",
+      };
+    }
 
     // Cache the user for 5 minutes
     cacheService.set(cacheKey, user, 5 * 60 * 1000);

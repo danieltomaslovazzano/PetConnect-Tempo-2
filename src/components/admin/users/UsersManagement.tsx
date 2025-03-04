@@ -29,6 +29,17 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import CreateUserDialog from "./CreateUserDialog";
 import EditUserDialog from "./EditUserDialog";
+import { formatDate } from "@/utils/utilityModule";
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: "active" | "blocked" | "pending";
+  joinDate: string;
+  avatarUrl?: string;
+}
 
 interface User {
   id: string;

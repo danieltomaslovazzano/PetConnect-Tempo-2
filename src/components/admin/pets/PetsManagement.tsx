@@ -29,6 +29,24 @@ import {
 } from "lucide-react";
 import CreatePetDialog from "./CreatePetDialog";
 import EditPetDialog from "./EditPetDialog";
+import { formatDate } from "@/utils/utilityModule";
+
+interface Pet {
+  id: string;
+  name: string;
+  type: string;
+  breed: string;
+  owner: string;
+  ownerEmail: string;
+  status: "lost" | "found" | "blocked" | "resolved";
+  reportedDate: string;
+  location: string;
+  imageUrl: string;
+  coordinates: {
+    lat: number;
+    lng: number;
+  };
+}
 
 interface Pet {
   id: string;

@@ -1,6 +1,5 @@
 import React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Dog, Cat, Rabbit } from "lucide-react";
 
@@ -23,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useFormManagement } from "@/hooks/useFormManagement";
 
 const petFormSchema = z.object({
   species: z.string().min(1, { message: "Please select a species" }),
@@ -63,14 +63,20 @@ const PetDetailsForm = ({
     additionalInfo: "",
   },
 }: PetDetailsFormProps) => {
-  const form = useForm<PetFormValues>({
-    resolver: zodResolver(petFormSchema),
+  // Use the useFormManagement hook
+  const {
+    form,
+    isSubmitting,
+    error,
+    success,
+    handleSubmit,
+  } = useFormManagement<PetFormValues>({
+    schema: petFormSchema,
     defaultValues,
+    onSubmit: async (data) => {
+      onSubmit(data);
+    },
   });
-
-  const handleSubmit = (data: PetFormValues) => {
-    onSubmit(data);
-  };
 
   return (
     <div className="w-full max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-sm">

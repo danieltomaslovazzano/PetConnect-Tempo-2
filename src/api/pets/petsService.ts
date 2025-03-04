@@ -3,72 +3,71 @@ import { Pet, CreatePetRequest, UpdatePetRequest, PetFilters } from "./types";
 import { getCurrentUser, hasRole, isResourceOwner } from "../auth/authService";
 import { cacheService } from "../cache/cacheService";
 
+// Función de ayuda para transformar el objeto crudo en el tipo Pet
+function transformPet(pet: any): Pet {
+  return {
+    ...pet,
+    // Si 'age' viene como string, lo convertimos a number
+    age: typeof pet.age === "string" ? Number(pet.age) : pet.age,
+    // Propiedades faltantes: se asigna un valor por defecto si no existen
+    owner_name: pet.owner_name || "",
+    owner_email: pet.owner_email || "",
+    // Usamos 'location' si existe, de lo contrario 'last_seen_location' o vacío
+    location: pet.location || pet.last_seen_location || "",
+    coordinates: pet.coordinates || "",
+    // Si 'reported_date' no existe, usamos 'created_at'
+    reported_date: pet.reported_date || pet.created_at || "",
+  };
+}
+
 /**
- * Get all pets with optional filtering
+ * Obtiene todas las mascotas con filtrado opcional.
  */
 export async function getPets(filters: PetFilters = {}): Promise<Pet[]> {
   try {
-    // Generate a cache key based on the filters
     const cacheKey = `pets_${JSON.stringify(filters)}`;
 
-    // Try to get from cache first (for non-critical data like public listings)
     return await cacheService.getOrCompute(
       cacheKey,
       async () => {
         let query = supabase.from("pets").select("*");
 
-        // Apply filters
         if (filters.status) {
           query = query.eq("status", filters.status);
         }
-
         if (filters.type) {
           query = query.eq("type", filters.type);
         }
-
         if (filters.breed) {
           query = query.ilike("breed", `%${filters.breed}%`);
         }
-
         if (filters.location) {
           query = query.ilike("location", `%${filters.location}%`);
         }
-
         if (filters.owner_id) {
           query = query.eq("owner_id", filters.owner_id);
         }
-
         if (filters.reported_after) {
           query = query.gte("reported_date", filters.reported_after);
         }
-
         if (filters.reported_before) {
           query = query.lte("reported_date", filters.reported_before);
         }
-
-        // Pagination
         if (filters.limit) {
           query = query.limit(filters.limit);
         }
-
         if (filters.offset) {
-          query = query.range(
-            filters.offset,
-            filters.offset + (filters.limit || 10) - 1,
-          );
+          query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
         }
-
-        // Order by most recent first
         query = query.order("reported_date", { ascending: false });
 
         const { data, error } = await query;
-
         if (error) throw error;
 
-        return data as Pet[];
+        return (data as any[]).map(transformPet);
       },
       60000,
-    ); // Cache for 1 minute
+    );
   } catch (error) {
     console.error("Error fetching pets:", error);
     throw error;
@@ -76,17 +75,13 @@ export async function getPets(filters: PetFilters = {}): Promise<Pet[]> {
 }
 
 /**
- * Get a single pet by ID
+ * Obtiene una mascota por su ID.
  */
 export async function getPetById(id: string): Promise<Pet> {
-  if (!id) {
-    throw new Error("Pet ID is required");
-  }
+  if (!id) throw new Error("Pet ID is required");
 
   try {
-    // Try to get from cache first
     const cacheKey = `pet_${id}`;
-
     return await cacheService.getOrCompute(
       cacheKey,
       async () => {
@@ -95,14 +90,12 @@ export async function getPetById(id: string): Promise<Pet> {
           .select("*")
           .eq("id", id)
           .single();
-
         if (error) throw error;
         if (!data) throw new Error(`Pet with ID ${id} not found`);
-
-        return data as Pet;
+        return transformPet(data);
       },
       300000,
-    ); // Cache for 5 minutes
+    );
   } catch (error) {
     console.error(`Error fetching pet with ID ${id}:`, error);
     throw error;
@@ -110,27 +103,20 @@ export async function getPetById(id: string): Promise<Pet> {
 }
 
 /**
- * Create a new pet
- * Requires authentication
+ * Crea una nueva mascota.
+ * Requiere autenticación.
  */
 export async function createPet(petData: CreatePetRequest): Promise<Pet> {
-  if (!petData) {
-    throw new Error("Pet data is required");
-  }
+  if (!petData) throw new Error("Pet data is required");
 
   try {
-    // Get current user
     const user = await getCurrentUser();
-    if (!user) {
-      throw new Error("Authentication required");
-    }
+    if (!user) throw new Error("Authentication required");
 
-    // Validate required fields
     if (!petData.name || !petData.breed || !petData.location) {
       throw new Error("Missing required fields");
     }
 
-    // Prepare pet data with owner information
     const newPet = {
       ...petData,
       owner_id: user.id,
@@ -139,18 +125,16 @@ export async function createPet(petData: CreatePetRequest): Promise<Pet> {
       updated_at: new Date().toISOString(),
     };
 
-    // Insert into database
     const { data, error } = await supabase
       .from("pets")
       .insert([newPet])
       .select()
       .single();
-
     if (error) throw error;
     if (!data) throw new Error("Failed to create pet record");
 
-    // Create audit log
-    await supabase.from("audit_logs").insert([
+    // Inserción en audit_logs (casting a any para evitar problemas de tipos)
+    await (supabase as any).from("audit_logs").insert([
       {
         user_id: user.id,
         action: "create",
@@ -160,14 +144,14 @@ export async function createPet(petData: CreatePetRequest): Promise<Pet> {
       },
     ]);
 
-    // Clear any cached pet lists to ensure fresh data
+    // Limpiar caché de listados de mascotas
     Object.keys(cacheService.getKeys()).forEach((key) => {
       if (key.startsWith("pets_")) {
         cacheService.remove(key);
       }
     });
 
-    return data as Pet;
+    return transformPet(data);
   } catch (error) {
     console.error("Error creating pet:", error);
     throw error;
@@ -175,61 +159,45 @@ export async function createPet(petData: CreatePetRequest): Promise<Pet> {
 }
 
 /**
- * Update an existing pet
- * Requires authentication and ownership or admin/moderator role
+ * Actualiza una mascota existente.
+ * Requiere autenticación y propiedad o rol admin/moderator.
  */
 export async function updatePet(
   id: string,
   petData: UpdatePetRequest,
 ): Promise<Pet> {
-  if (!id || !petData) {
-    throw new Error("Pet ID and update data are required");
-  }
+  if (!id || !petData) throw new Error("Pet ID and update data are required");
 
   try {
-    // Get current user
     const user = await getCurrentUser();
-    if (!user) {
-      throw new Error("Authentication required");
-    }
+    if (!user) throw new Error("Authentication required");
 
-    // Check if user is owner or has admin/moderator role
     const isOwner = await isResourceOwner("pets", id);
     const isModerator = await hasRole("moderator");
-
     if (!isOwner && !isModerator) {
       throw new Error("You don't have permission to update this pet");
     }
 
-    // Get the current pet data for audit log
     const { data: oldPet, error: fetchError } = await supabase
       .from("pets")
       .select("*")
       .eq("id", id)
       .single();
-
     if (fetchError) throw fetchError;
     if (!oldPet) throw new Error(`Pet with ID ${id} not found`);
 
-    // Prepare update data
-    const updateData = {
-      ...petData,
-      updated_at: new Date().toISOString(),
-    };
+    const updateData = { ...petData, updated_at: new Date().toISOString() };
 
-    // Update in database
     const { data, error } = await supabase
       .from("pets")
       .update(updateData)
       .eq("id", id)
       .select()
       .single();
-
     if (error) throw error;
     if (!data) throw new Error(`Failed to update pet with ID ${id}`);
 
-    // Create audit log
-    await supabase.from("audit_logs").insert([
+    await (supabase as any).from("audit_logs").insert([
       {
         user_id: user.id,
         action: "update",
@@ -240,7 +208,6 @@ export async function updatePet(
       },
     ]);
 
-    // Clear relevant caches
     cacheService.remove(`pet_${id}`);
     Object.keys(cacheService.getKeys()).forEach((key) => {
       if (key.startsWith("pets_")) {
@@ -248,7 +215,7 @@ export async function updatePet(
       }
     });
 
-    return data as Pet;
+    return transformPet(data);
   } catch (error) {
     console.error(`Error updating pet with ID ${id}:`, error);
     throw error;
@@ -256,46 +223,34 @@ export async function updatePet(
 }
 
 /**
- * Delete a pet
- * Requires authentication and ownership or admin role
+ * Elimina una mascota.
+ * Requiere autenticación y propiedad o rol admin.
  */
 export async function deletePet(id: string): Promise<boolean> {
-  if (!id) {
-    throw new Error("Pet ID is required");
-  }
+  if (!id) throw new Error("Pet ID is required");
 
   try {
-    // Get current user
     const user = await getCurrentUser();
-    if (!user) {
-      throw new Error("Authentication required");
-    }
+    if (!user) throw new Error("Authentication required");
 
-    // Check if user is owner or has admin role
     const isOwner = await isResourceOwner("pets", id);
     const isAdmin = await hasRole("admin");
-
     if (!isOwner && !isAdmin) {
       throw new Error("You don't have permission to delete this pet");
     }
 
-    // Get the current pet data for audit log
     const { data: oldPet, error: fetchError } = await supabase
       .from("pets")
       .select("*")
       .eq("id", id)
       .single();
-
     if (fetchError) throw fetchError;
     if (!oldPet) throw new Error(`Pet with ID ${id} not found`);
 
-    // Delete from database
     const { error } = await supabase.from("pets").delete().eq("id", id);
-
     if (error) throw error;
 
-    // Create audit log
-    await supabase.from("audit_logs").insert([
+    await (supabase as any).from("audit_logs").insert([
       {
         user_id: user.id,
         action: "delete",
@@ -305,7 +260,6 @@ export async function deletePet(id: string): Promise<boolean> {
       },
     ]);
 
-    // Clear relevant caches
     cacheService.remove(`pet_${id}`);
     Object.keys(cacheService.getKeys()).forEach((key) => {
       if (key.startsWith("pets_")) {
@@ -321,16 +275,12 @@ export async function deletePet(id: string): Promise<boolean> {
 }
 
 /**
- * Block a pet (admin/moderator only)
+ * Bloquea una mascota (solo admin/moderator).
  */
 export async function blockPet(id: string): Promise<Pet> {
   try {
-    // Check if user has moderator or admin role
     const isModerator = await hasRole("moderator");
-    if (!isModerator) {
-      throw new Error("You don't have permission to block pets");
-    }
-
+    if (!isModerator) throw new Error("You don't have permission to block pets");
     return await updatePet(id, { status: "blocked" });
   } catch (error) {
     console.error(`Error blocking pet with ID ${id}:`, error);
@@ -339,19 +289,15 @@ export async function blockPet(id: string): Promise<Pet> {
 }
 
 /**
- * Unblock a pet (admin/moderator only)
+ * Desbloquea una mascota (solo admin/moderator).
  */
 export async function unblockPet(
   id: string,
   originalStatus: "lost" | "found" = "lost",
 ): Promise<Pet> {
   try {
-    // Check if user has moderator or admin role
     const isModerator = await hasRole("moderator");
-    if (!isModerator) {
-      throw new Error("You don't have permission to unblock pets");
-    }
-
+    if (!isModerator) throw new Error("You don't have permission to unblock pets");
     return await updatePet(id, { status: originalStatus });
   } catch (error) {
     console.error(`Error unblocking pet with ID ${id}:`, error);

@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, ArrowRight, ArrowLeft, Percent } from "lucide-react";
+import { formatDate } from "@/utils/utilityModule";
 
 interface Pet {
   id: string;
