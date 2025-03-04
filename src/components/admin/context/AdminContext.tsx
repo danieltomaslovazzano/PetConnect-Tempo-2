@@ -1,9 +1,9 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, ReactNode, useState, useEffect } from "react";
 
 // Create a context for admin functionality
 export interface AdminContextType {
   // User management
-  users: any[];
+  users: { id: string; name: string; email: string; }[];
   loadingUsers: boolean;
   userError: string | null;
   loadUsers: () => Promise<any[]>;
@@ -13,7 +13,7 @@ export interface AdminContextType {
   unblockUser: (id: string) => Promise<any>;
 
   // Pet management
-  pets: any[];
+  pets: { id: string; name: string; type: string; }[];
   loadingPets: boolean;
   petError: string | null;
   loadPets: () => Promise<any[]>;
@@ -25,9 +25,28 @@ export interface AdminContextType {
 }
 
 // Create the context with a default undefined value
-export const AdminContext = createContext<AdminContextType | undefined>(
-  undefined,
-);
+const defaultAdminContext: AdminContextType = {
+  users: [],
+  loadingUsers: false,
+  userError: null,
+  loadUsers: async () => [],
+  updateUser: async () => ({}),
+  deleteUser: async () => true,
+  blockUser: async () => ({}),
+  unblockUser: async () => ({}),
+
+  pets: [],
+  loadingPets: false,
+  petError: null,
+  loadPets: async () => [],
+  createPet: async () => ({}),
+  updatePet: async () => ({}),
+  deletePet: async () => true,
+  blockPet: async () => ({}),
+  unblockPet: async () => ({}),
+};
+
+export const AdminContext = createContext<AdminContextType>(defaultAdminContext);
 
 // Define the useAdmin hook
 export function useAdmin() {

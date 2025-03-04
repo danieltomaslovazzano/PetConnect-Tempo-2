@@ -1,47 +1,29 @@
-/**
- * Helper functions for the admin interface
- */
+// src/components/admin/utils/adminHelpers.ts
 
-// Format date for display
-export function formatDate(dateString: string): string {
-  if (!dateString) return "";
-
-  return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-// Get status badge variant based on status string
+// Devuelve una variante (estilo) basado en el estado
 export function getStatusVariant(status: string): string {
   switch (status) {
-    case "active":
-      return "success";
-    case "blocked":
-      return "destructive";
-    case "pending":
-      return "warning";
     case "lost":
       return "destructive";
     case "found":
+      return "outline";
+    case "blocked":
       return "secondary";
-    case "resolved":
-      return "success";
     default:
       return "default";
   }
 }
 
-// Generate avatar URL from name
+// Genera una URL de avatar basándose en las iniciales del nombre
 export function generateAvatarUrl(name: string): string {
-  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`;
+  const initials = getInitials(name);
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}`;
 }
 
-// Get initials from name
+// Obtiene las iniciales de un nombre
 export function getInitials(name: string): string {
   return name
     .split(" ")
-    .map((n) => n[0])
+    .map(n => n[0])
     .join("");
 }

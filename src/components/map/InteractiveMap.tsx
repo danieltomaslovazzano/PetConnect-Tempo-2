@@ -18,6 +18,34 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./LeafletStyles.css";
+import { formatDate } from "@/utils/utilityModule";
+
+interface Location {
+  lat: number;
+  lng: number;
+}
+
+interface Pet {
+  id: string;
+  name: string;
+  type: string;
+  breed: string;
+  status: "lost" | "found";
+  imageUrl: string;
+  location: string;
+  reportedDate: string;
+  description?: string;
+  coordinates: Location;
+}
+
+interface InteractiveMapProps {
+  pets?: Pet[];
+  initialCenter?: Location;
+  initialZoom?: number;
+  onMarkerClick?: (petId: string) => void;
+  onViewDetails?: (petId: string) => void;
+  onContact?: (petId: string) => void;
+}
 
 // Fix for default marker icons in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -265,7 +293,7 @@ const InteractiveMap = ({
                   center={[initialCenter.lat, initialCenter.lng]}
                   zoom={initialZoom}
                   style={{ height: "100%", width: "100%" }}
-                  whenCreated={(map) => {
+                  whenReady={(map) => {
                     mapRef.current = map;
                   }}
                 >

@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -22,13 +21,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle, PawPrint } from "lucide-react";
 import { CreatePetRequest } from "@/api";
 import { usePets } from "@/hooks";
 import PetPhotoUploader from "./PetPhotoUploader";
 import LocationPicker from "../map/LocationPicker";
+import CardLayout from "@/components/ui/card-layout";
+import { useFormManagement } from "@/hooks/useFormManagement";
 
 // Form schema for validation
 const formSchema = z.object({
@@ -78,13 +78,16 @@ const ReportPetForm = ({
     address: "New York, NY, USA",
   });
   const { createPet } = usePets();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
-  // Initialize form with default values
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  // Use the useFormManagement hook
+  const {
+    form,
+    isSubmitting,
+    error,
+    success,
+    handleSubmit,
+  } = useFormManagement<FormValues>({
+    schema: formSchema,
     defaultValues: {
       name: reportType === "found" ? "Unknown" : "",
       type: "Dog",
@@ -103,32 +106,7 @@ const ReportPetForm = ({
       collar: false,
       distinctive_features: "",
     },
-  });
-
-  // Handle image upload completion
-  const handleImageUploaded = (url: string) => {
-    setImageUrl(url);
-    form.setValue("image_url", url);
-  };
-
-  // Handle location selection
-  const handleLocationSelect = (loc: {
-    lat: number;
-    lng: number;
-    address: string;
-  }) => {
-    setLocation(loc);
-    form.setValue("location", loc.address);
-    form.setValue("coordinates", { lat: loc.lat, lng: loc.lng });
-  };
-
-  // Handle form submission
-  const onSubmit = async (data: FormValues) => {
-    try {
-      setIsSubmitting(true);
-      setError(null);
-      setSuccess(false);
-
+    onSubmit: async (data) => {
       // Ensure image URL is included if provided
       if (imageUrl && !data.image_url) {
         data.image_url = imageUrl;
@@ -151,40 +129,34 @@ const ReportPetForm = ({
       };
 
       const result = await createPet(petData);
-
-      // Reset form on success
-      form.reset({
-        name: reportType === "found" ? "Unknown" : "",
-        type: "Dog",
-        breed: "",
-        color: "",
-        gender: "unknown",
-        size: "medium",
-        age: "",
-        description: "",
-        status: reportType,
-        owner_name: "",
-        owner_email: "",
-        location: location.address,
-        coordinates: { lat: location.lat, lng: location.lng },
-        microchipped: false,
-        collar: false,
-        distinctive_features: "",
-      });
-
-      setImageUrl("");
-      setSuccess(true);
       onSuccess(result);
-    } catch (err: any) {
-      console.error("Error submitting pet report:", err);
-      setError(err.message || "Failed to submit pet report. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    },
+  });
+
+  // Handle image upload completion
+  const handleImageUploaded = (url: string) => {
+    setImageUrl(url);
+    form.setValue("image_url", url);
+  };
+
+  // Handle location selection
+  const handleLocationSelect = (loc: {
+    lat: number;
+    lng: number;
+    address: string;
+  }) => {
+    setLocation(loc);
+    form.setValue("location", loc.address);
+    form.setValue("coordinates", { lat: loc.lat, lng: loc.lng });
   };
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <CardLayout
+      title={`${reportType === "lost" ? "Lost" : "Found"} Pet Report`}
+      description={`Please fill out the form below to report a ${reportType} pet.`}
+      icon={<PawPrint className="h-6 w-6 text-blue-500" />}
+      className="max-w-3xl mx-auto"
+    >
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -204,7 +176,7 @@ const ReportPetForm = ({
       )}
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-6">
               <div className="space-y-4">
@@ -523,7 +495,7 @@ const ReportPetForm = ({
           </div>
         </form>
       </Form>
-    </div>
+    </CardLayout>
   );
 };
 

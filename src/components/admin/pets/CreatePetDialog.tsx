@@ -1,5 +1,4 @@
 import React from "react";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
@@ -26,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useFormManagement } from "@/hooks/useFormManagement";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -56,8 +56,15 @@ const CreatePetDialog = ({
   onOpenChange,
   onSubmit,
 }: CreatePetDialogProps) => {
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  // Use the useFormManagement hook
+  const {
+    form,
+    isSubmitting,
+    error,
+    success,
+    handleSubmit,
+  } = useFormManagement<FormValues>({
+    schema: formSchema,
     defaultValues: {
       name: "",
       type: "Dog",
@@ -73,12 +80,11 @@ const CreatePetDialog = ({
         lng: -74.006,
       },
     },
+    onSubmit: async (data) => {
+      onSubmit(data);
+      form.reset();
+    },
   });
-
-  const handleSubmit = (data: FormValues) => {
-    onSubmit(data);
-    form.reset();
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -303,15 +309,10 @@ const CreatePetDialog = ({
               />
             </div>
 
-            <DialogFooter className="pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-              >
-                Cancel
+            <DialogFooter>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Submitting..." : "Submit"}
               </Button>
-              <Button type="submit">Add Pet</Button>
             </DialogFooter>
           </form>
         </Form>

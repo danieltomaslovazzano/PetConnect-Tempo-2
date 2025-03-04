@@ -10,7 +10,7 @@ import {
   UpdatePetRequest,
   PetFilters,
 } from "@/api";
-import { debounce } from "@/api/utils/apiHelpers";
+import { debounce } from "@/utils/utilityModule";
 
 /**
  * Hook for managing pets in the UI

@@ -125,7 +125,7 @@ const LocationPicker = ({
             center={[initialLocation.lat, initialLocation.lng]}
             zoom={13}
             style={{ height: "100%", width: "100%" }}
-            whenCreated={(map) => {
+            whenReady={(map) => {
               mapRef.current = map;
             }}
           >

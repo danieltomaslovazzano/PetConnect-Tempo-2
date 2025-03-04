@@ -10,7 +10,7 @@ export function middleware(request: NextRequest) {
 
   // Handle CORS for API routes
   if (path.startsWith("/api/")) {
-    // Get the origin from the request headers
+    // Get the origin from the request headers (if needed)
     const origin = request.headers.get("origin") || "";
 
     // Create a new response
@@ -20,11 +20,11 @@ export function middleware(request: NextRequest) {
     response.headers.set("Access-Control-Allow-Origin", "*");
     response.headers.set(
       "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, OPTIONS",
+      "GET, POST, PUT, DELETE, OPTIONS"
     );
     response.headers.set(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization",
+      "Content-Type, Authorization"
     );
     response.headers.set("Access-Control-Max-Age", "86400");
 
